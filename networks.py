@@ -73,6 +73,9 @@ class JanuaryNet(nn.Module):
         self.exports = nn.ModuleList([ExportLayer(128, num_classes),
                                       ExportLayer(256, num_classes),
                                       ExportLayer(256, num_classes)])
+    
+        self.priors_center_offset, self.priors_point_form = self.generate_prior_boxes()
+    
     def init(self, init_fn):
         self.extra.apply(init_fn)
         self.exports.apply(init_fn)
@@ -102,6 +105,41 @@ class JanuaryNet(nn.Module):
         confs_t = torch.cat(confs, dim=1)
             
         return locs_t,confs_t
+    
+    def generate_prior_boxes(self, ratio=0.75):
+        '''
+        Generate prior boxes(default boxes) using parameters 
+            fk as 50,25,13, sk as 0.15,0.4,0.75.
+        
+        Return:
+            center_offset: [(centerx,centery,width,height),...]
+            point_form: [(xmin,ymin,xmax,ymax),...]
+        '''
+        boxes_list = []
+        for fk,sk in zip([50,25,13], [0.15,0.4,0.75]):
+            x = (torch.arange(fk).type(torch.float) + 0.5) /fk
+            y = (torch.arange(fk).type(torch.float) + 0.5) /fk
+            x = x.view(1,fk).unsqueeze(2).expand(fk,fk,4) # (y,x,num_box)
+            y = y.view(fk,1).unsqueeze(2).expand(fk,fk,4)
+            
+            w = torch.tensor([sk, sk*ratio, sk, sk*ratio])
+            h = torch.tensor([sk, sk, sk*ratio, sk*ratio])
+            w = w.unsqueeze(0).unsqueeze(0).expand(fk,fk,4)
+            h = h.unsqueeze(0).unsqueeze(0).expand(fk,fk,4)
+            
+            priors = torch.stack([x,y,w,h])
+            priors = priors.permute(1,2,3,0).contiguous().view(fk*fk*4,4)
+            boxes_list.append(priors)
+        center_offset = torch.cat(boxes_list, 0)
+        
+        point_form = torch.empty_like(center_offset)
+        point_form[:,0] = center_offset[:,0] - center_offset[:,2]/2
+        point_form[:,1] = center_offset[:,1] - center_offset[:,3]/2
+        point_form[:,2] = center_offset[:,0] + center_offset[:,2]/2
+        point_form[:,3] = center_offset[:,1] + center_offset[:,3]/2
+        
+        return center_offset,point_form
+
 
 if __name__ == '__main__':
     # Placing above line is required to solve the issue:

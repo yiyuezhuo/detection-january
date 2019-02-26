@@ -10,7 +10,7 @@ import os
 import imageio
 import xml.etree.ElementTree as ET
 import numpy as np
-
+from transforms import train_transform
 
 def parseVOC(path):
     # example: classes = ['open', 'close']
@@ -62,11 +62,18 @@ class DetectionDataset(data.Dataset):
         coords = np.array(coords)
         
         if self.transform is not None:
-            img, coords, labels = self.transform(img, coords, labels)
+            img, coords = self.transform(img, coords) # label have been mapped
         
         return img, coords, labels
+    
+class SwitchDatasets(DetectionDataset):
+    def __init__(self, root):
+        super().__init__(root, ['open', 'close'], transform = train_transform)
+
         
+
 if __name__ == '__main__':
-    dataset = DetectionDataset(r'E:\agent3\lab\switch', ['open', 'close'])
+    dataset = DetectionDataset(r'E:\agent3\lab\switch', ['open', 'close'], 
+                               transform= train_transform)
     for c,d,e in dataset:
         break
