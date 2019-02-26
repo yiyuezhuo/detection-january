@@ -28,6 +28,7 @@ def show_detection(img, boxes, show=True):
     plt.imshow(img)
     for box in boxes:
         xmin,ymin,xmax,ymax = box
+        #print((xmin,ymin), xmax-xmin, ymax-ymin)
         rectangle((xmin,ymin), xmax-xmin, ymax-ymin)
     if show:
         plt.show()
@@ -46,11 +47,12 @@ if __name__ == '__main__':
             show_detection(ct, dt)
     
     if True:
-        print('test random_horizontal_flip')
+        print('test random_crop')
         for i in range(7):
             ct = c.copy()
             dt = d.copy()
-            ct,dt = random_crop(ct, dt)
+            ce = e.copy()
+            ct,dt,ce = random_crop(ct, dt, ce)
             show_detection(ct, dt)
             
     if True:
@@ -70,15 +72,17 @@ if __name__ == '__main__':
             show_detection(ct, dt)
             
     if True:
-        print('test enchancement_transform')
-        for i in range(8):
+        print('test enchancement_transform(image 0)')
+        for i in range(5):
             ct = c.copy()
             dt = d.copy()
-            ct,dt= enchancement_transform(ct, dt)
-            dt[:,[0,2]] *= ct.shape[1]
-            dt[:,[1,3]] *= ct.shape[0]
+            ce = e.copy()
+            ct,dt,ce= enchancement_transform(ct, dt, ce)
+            if len(dt.squeeze()) != 0:
+                dt[:,[0,2]] *= ct.shape[1]
+                dt[:,[1,3]] *= ct.shape[0]
             show_detection(ct, dt)
-    
+            
     if True:
         print('test resize')
         for i in range(1):
@@ -86,3 +90,24 @@ if __name__ == '__main__':
             dt = d.copy()
             ct= resize(ct)
             show_detection(ct, dt)
+            
+    if True:
+        print('test enchancement_transform(many image)')
+        num_test = 10
+        for c,d,e in dataset:
+            ct = c.copy()
+            dt = d.copy()
+            ct,dt,ce= enchancement_transform(ct, dt, ce)
+            
+            print(dt)
+            if len(dt.squeeze()) != 0:
+                dt[:,[0,2]] *= ct.shape[1]
+                dt[:,[1,3]] *= ct.shape[0]
+            show_detection(ct, dt)
+            
+            
+            num_test -=1
+            if num_test<=0:
+                break
+
+    

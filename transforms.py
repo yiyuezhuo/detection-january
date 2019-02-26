@@ -9,6 +9,7 @@ import random
 import numpy as np
 from matplotlib.colors import hsv_to_rgb, rgb_to_hsv # I hate OpenCV anyway -_-
 from torchvision.transforms import ToTensor,Normalize
+import torch
 
 def iou(box1, box2):
     '''
@@ -23,8 +24,8 @@ def iou(box1, box2):
     area1 = w1*h1
     area2 = w2*h2
     
-    w = w1 + w2 - (max(xmax1,xmax2) - min(xmin1,xmin2))
-    h = h1 + h2 - (max(ymax1,ymax2) - min(ymin1,ymin2))
+    w = max(w1 + w2 - (max(xmax1,xmax2) - min(xmin1,xmin2)), 0)
+    h = max(h1 + h2 - (max(ymax1,ymax2) - min(ymin1,ymin2)), 0)
     ai = w*h
     
     return ai/(area1+area2-ai)
@@ -60,7 +61,7 @@ def random_horizontal_flip(img, boxes):
     
     if not non_boxes and random.random() > 0.5:
         img = img[:,::-1]
-        boxes[:,[0,2]] = width - boxes[:,[0,2]]
+        boxes[:,[0,2]] = width - boxes[:,[2,0]]
     
     return img,boxes
 
@@ -100,11 +101,11 @@ def random_crop_wrong(img, boxes):
     boxes_t = np.array(boxes_t)
     return img[top:bottom, left:right], boxes_t
     
-def random_crop(img, boxes):
+def random_crop(img, boxes, labels):
     height,width, channel = img.shape
     
     if random.random() < 0.2:
-        return img,boxes
+        return img,boxes,labels
     if random.random() < 0.2:
         iou_ratio = 0.0
     else:
@@ -137,12 +138,13 @@ def random_crop(img, boxes):
             break
     else:
         #print('fail')
-        return img, boxes
+        return img, boxes, labels
     
     #print(left,top,right,bottom)
     
     boxes_t = []
-    for box in boxes:
+    labels_t = []
+    for label, box in zip(labels, boxes):
         xmin,ymin,xmax,ymax = box
         cx = (xmax+xmin)/2
         cy = (ymax+ymin)/2
@@ -151,11 +153,15 @@ def random_crop(img, boxes):
             xmax_t = max(xmax - left, 0)
             ymin_t = max(ymin - top, 0)
             ymax_t = max(ymax - top,0)
+            
             boxes_t.append([xmin_t,ymin_t,xmax_t,ymax_t])
+            labels_t.append(label)
+    
     boxes_t = np.array(boxes_t)
+    labels_t = np.array(labels_t)
     #print('succ', left,top,right,bottom, max([iou(box, box_alt) for box in boxes]) )
     #print(img[top:bottom, left:right].shape)
-    return img[top:bottom, left:right], boxes_t
+    return img[top:bottom, left:right], boxes_t, labels_t
 
 def photometric_distort_scipy(img):
     '''
@@ -247,15 +253,15 @@ to_tensor = ToTensor()
 normalize = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
 # compiled transforms
-def enchancement_transform(img, boxes):
-    # boxes relevent operation
-    img, boxes = random_crop(img, boxes)
+def enchancement_transform(img, boxes, labels):
+    # boxes, labels related operation
+    img, boxes, labels = random_crop(img, boxes, labels) # It may reduce size of boxes and labels
     img, boxes = random_horizontal_flip(img, boxes)
     img, boxes = box_to_percent(img, boxes)
     # point operation
     img = photometric_distort(img)
     img = channel_swap(img) # Is it useful?
-    return img, boxes
+    return img, boxes, labels
 
 def base_transform(img):
     img = resize(img)
@@ -263,10 +269,10 @@ def base_transform(img):
     img = normalize(img)
     return img
 
-def train_transform(img, boxes):
-    img, boxes = enchancement_transform(img, boxes)
+def train_transform(img, boxes, labels):
+    img, boxes, labels = enchancement_transform(img, boxes, labels)
     img = base_transform(img)
-    return img, boxes
+    return img, torch.from_numpy(boxes), torch.from_numpy(labels)
 
 def test_transform(img):
     img = base_transform(img)

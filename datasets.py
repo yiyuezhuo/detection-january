@@ -11,6 +11,7 @@ import imageio
 import xml.etree.ElementTree as ET
 import numpy as np
 from transforms import train_transform
+#import torch
 
 def parseVOC(path):
     # example: classes = ['open', 'close']
@@ -46,6 +47,9 @@ class DetectionDataset(data.Dataset):
     def __len__(self):
         return len(self.idxs)
     def __getitem__(self, list_idx):
+        '''
+        According to transform, it may return numpy.array or torch.tensor.
+        '''
         idx = self.idxs[list_idx]
         img_path = os.path.join(self.root, 'JPEGImages', idx+'.jpg')
         anno_path = os.path.join(self.root, 'Annotations', idx+'.xml')
@@ -62,7 +66,7 @@ class DetectionDataset(data.Dataset):
         coords = np.array(coords)
         
         if self.transform is not None:
-            img, coords = self.transform(img, coords) # label have been mapped
+            img, coords, labels = self.transform(img, coords, labels) 
         
         return img, coords, labels
     
