@@ -11,7 +11,7 @@ import torch.optim as optim
 import os
 import time
 
-from datasets import SwitchDatasets
+from datasets import SwitchDatasets#, collate_fn
 from networks import ResNet18Reduced, JanuaryNet, weight_init
 from losses import decode, point_form_loss
 
@@ -27,6 +27,10 @@ class config:
     pin_memory = False # preload content into VRAM for speed up. It may cause system freeze or something.
     # https://discuss.pytorch.org/t/what-is-the-disadvantage-of-using-pin-memory/1702
     
+    # cache parameters
+    #resume = None # resume path, if None create a new network
+    resume = 'weights/Jan_net_epoch=17batch=329.pth'
+    
     # cuda parameters 
     cuda = True
     
@@ -38,24 +42,16 @@ class config:
     alpha = 1.0
     
     # optimizer parameter
-    lr = 0.000001
+    #lr = 0.000001
+    lr=1e-9
     momentum = 0.9
     weight_decay = 5e-4
     
     # Inspecting parameter
     num_batch_display = 10
-    time_to_save = 600 # second
+    time_to_save = 1800 # second
 
 
-def collate_fn(batch):
-    img_list = []
-    coords_list = []
-    labels_list = []
-    for img, coords, labels in batch:
-        img_list.append(img)
-        coords_list.append(coords)
-        labels_list.append(labels)
-    return torch.stack(img_list, 0), coords_list, labels_list
 
 if __name__ == '__main__':
     print('config:')
@@ -70,23 +66,31 @@ if __name__ == '__main__':
                     shuffle = config.shuffle,
                     num_workers = config.num_workers,
                     pin_memory = config.pin_memory,
-                    collate_fn = collate_fn)
+                    collate_fn = SwitchDatasets.collate_fn)
     
-    
+    '''
     samples = []
     for i,sample in enumerate(datasets):
         if i==8:
             break
         samples.append(sample)
     imgs, coords_list, labels_list =  collate_fn(samples) # coords_list is point-form
+    '''
     
-    # setup backbone network
-    resnet_features = ResNet18Reduced()
-    resnet_features.load_state_dict(torch.load('weights/resnet18reduced.pth'))
-    
-    # setup main network
-    net = JanuaryNet(resnet_features, 3)
-    net.init(weight_init)
+    if config.resume is None:
+        # setup backbone network
+        print('create new model')
+        resnet_features = ResNet18Reduced()
+        resnet_features.load_state_dict(torch.load('weights/resnet18reduced.pth'))
+        
+        # setup main network
+        net = JanuaryNet(resnet_features, 3)
+        net.init(weight_init)
+    else:
+        print('load {}'.format(config.resume))
+        resnet_features = ResNet18Reduced()
+        net = JanuaryNet(resnet_features, 3)
+        net.load_state_dict(torch.load(config.resume))
     
     if config.cuda:
         net = net.cuda()
@@ -116,7 +120,8 @@ if __name__ == '__main__':
             loc,conf = net(imgs) # loc is encoding, 
             loc_decoded = decode(loc, net.priors_center_offset) # (batch_size, num_priors, 4) point-form
             loc_loss, conf_loss = point_form_loss(loc_decoded, conf, coords_list, 
-                                                  labels_list, net.priors_point_form, match_threshold = config.match_threshold)
+                  labels_list, net.priors_point_form, 
+                  match_threshold = config.match_threshold, verbose=False)
             loss = loc_loss + config.alpha*conf_loss 
             
             loss.backward()
@@ -129,6 +134,8 @@ if __name__ == '__main__':
             time_acc += now_time - last_time
             last_time = now_time
             batch_acc += 1
+            loc_loss_acc += loc_loss.item()
+            conf_loss_acc += conf_loss.item()
             
             #print('testing')
             
@@ -140,8 +147,12 @@ if __name__ == '__main__':
                 time_acc = 0
             
             if batch_acc > config.num_batch_display:
-                print('epoch={} batch={} loc_loss={} conf_loss={}'.format(
-                    epoch_idx, batch_idx, loc_loss_acc, conf_loss_acc))
+                info = 'epoch={} batch={} loc_loss={} conf_loss={}'.format(
+                    epoch_idx, batch_idx, loc_loss_acc, conf_loss_acc)
+                print(info)
+                with open('log.txt', 'a') as f:
+                    f.write(info)
+                    f.write('\n')
                 
                 batch_acc = 0
                 loc_loss_acc = 0

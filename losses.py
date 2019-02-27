@@ -12,47 +12,8 @@ target corrds.
 
 import torch
 import torch.nn.functional as F
+from utils import iou
 
-
-def iou(boxes1, boxes2):
-    '''
-    batch mode of transforms.iou
-    
-    boxes1: (num_priors, 4)
-    boxes2: (num_boxes, 4)
-    
-    Return:
-        IoU matrix. Shape: (num_priors, num_boxes)
-    '''
-    #num_priors = boxes1.shape[0]
-    #num_boxes = boxes2.shape[0]
-    
-    xmin1,ymin1,xmax1,ymax1 = boxes1[:,0],boxes1[:,1],boxes1[:,2],boxes1[:,3]
-    xmin2,ymin2,xmax2,ymax2 = boxes2[:,0],boxes2[:,1],boxes2[:,2],boxes2[:,3]
-    # slice will not copy data, but only generate a proper view of original tensor.
-    
-    xmin1,xmax1,ymin1,ymax1 = xmin1.view(-1,1),xmax1.view(-1,1),ymin1.view(-1,1),ymax1.view(-1,1)
-    xmin2,xmax2,ymin2,ymax2 = xmin2.view(1,-1),xmax2.view(1,-1),ymin2.view(1,-1),ymax2.view(1,-1)
-    
-    w1,h1 = xmax1-xmin1, ymax1-ymin1
-    w2,h2 = xmax2-xmin2, ymax2-ymin2
-    
-    area1 = w1*h1
-    area2 = w2*h2
-    
-    # For torch.tensor(0) get on cuda device defaultly, we need lines such as 
-    # torch.set_default_tensor_type('torch.cuda.FloatTensor')
-    w = torch.max(w1 + w2 - (torch.max(xmax1,xmax2) - torch.min(xmin1,xmin2)), torch.tensor(0.0))
-    h = torch.max(h1 + h2 - (torch.max(ymax1,ymax2) - torch.min(ymin1,ymin2)), torch.tensor(0.0))
-    ai = w*h
-    
-    return ai/(area1+area2-ai)
-
-def encode():
-    '''
-    This implementation don't require encode
-    '''
-    raise NotImplementedError
 
 def decode(boxes, priors):
     '''
@@ -108,7 +69,8 @@ def point_form_loss(boxes_p, conf_p, boxes_gt, conf_gt, priors,
     conf_losses = torch.zeros(batch_size)
     for i, (b_p, c_p, b_g_list, c_g_list) in enumerate(zip(boxes_p, conf_p, boxes_gt, conf_gt)):
         # For every entries in a batch, is it true to write it in this form?
-        if len(b_g_list.squeeze()) == 0:
+        #if len(b_g_list.squeeze()) == 0:
+        if b_g_list.numel() == 0:
             continue # skip if no ground truth box , 
             # Yes, we will not use the background in here to train, considering the requirement of Hard Negative Mining.
         

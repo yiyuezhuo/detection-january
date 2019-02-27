@@ -12,26 +12,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 #import imageio
 
-import matplotlib.patches as patches
 
 from datasets import DetectionDataset
 from transforms import random_horizontal_flip, random_crop, photometric_distort, \
     channel_swap, to_tensor, normalize, train_transform, test_transform, \
     enchancement_transform, base_transform,resize
-
-def rectangle(xy, width, height, edgecolor='r', linewidth=1, facecolor='none'):
-    rect = patches.Rectangle(xy, width, height, linewidth=linewidth, 
-                             edgecolor=edgecolor, facecolor=facecolor)
-    plt.gca().add_patch(rect)
-
-def show_detection(img, boxes, show=True):
-    plt.imshow(img)
-    for box in boxes:
-        xmin,ymin,xmax,ymax = box
-        #print((xmin,ymin), xmax-xmin, ymax-ymin)
-        rectangle((xmin,ymin), xmax-xmin, ymax-ymin)
-    if show:
-        plt.show()
+from utils import rectangle, show_detection
 
 if __name__ == '__main__':
     dataset = DetectionDataset(r'E:\agent3\lab\switch', ['open', 'close'])
@@ -78,7 +64,8 @@ if __name__ == '__main__':
             dt = d.copy()
             ce = e.copy()
             ct,dt,ce= enchancement_transform(ct, dt, ce)
-            if len(dt.squeeze()) != 0:
+            #if len(dt.squeeze()) != 0:
+            if dt.numel() != 0:
                 dt[:,[0,2]] *= ct.shape[1]
                 dt[:,[1,3]] *= ct.shape[0]
             show_detection(ct, dt)
@@ -100,7 +87,8 @@ if __name__ == '__main__':
             ct,dt,ce= enchancement_transform(ct, dt, ce)
             
             print(dt)
-            if len(dt.squeeze()) != 0:
+            #if len(dt.squeeze()) != 0:
+            if dt.numel() !=0:
                 dt[:,[0,2]] *= ct.shape[1]
                 dt[:,[1,3]] *= ct.shape[0]
             show_detection(ct, dt)
