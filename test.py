@@ -13,7 +13,7 @@ from utils import rectangle, show_detection
 import torch.nn.functional as F
 
 class config:
-    resume = r'weights/Jan_net_epoch=25batch=322.pth'
+    resume = r'weights/Jan_net_epoch=8batch=308.pth'
     datasets = r'E:\agent3\lab\switch\JPEGImages'
     
 resnet_features = ResNet18Reduced()
@@ -23,20 +23,6 @@ net.eval()
 
 datasets = TestDatasets(config.datasets)
 
-'''
-for img_numpy in datasets:
-    break
-
-img_tensor = test_transform(img_numpy)
-img_wrap = img_tensor.unsqueeze(0)
-
-loc,conf = net(img_wrap)
-loc_decoded = decode(loc, net.priors_center_offset)
-h,w,c = img_numpy.shape
-loc_abs = loc_decoded * torch.tensor([w,h,w,h]).float()
-
-show_detection(img_numpy, loc_abs[:,12736])
-'''
 
 num_test = 10
 for img_numpy in datasets:
@@ -63,3 +49,7 @@ for img_numpy in datasets:
     num_test -= 1
     if num_test <= 0:
         break
+    
+if False:
+    from torchviz import make_dot, make_dot_from_trace
+    make_dot(net(img_wrap))

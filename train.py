@@ -29,7 +29,7 @@ class config:
     
     # cache parameters
     #resume = None # resume path, if None create a new network
-    resume = 'weights/Jan_net_epoch=17batch=329.pth'
+    resume = 'weights/Jan_net_epoch=8batch=275.pth'
     
     # cuda parameters 
     cuda = True
@@ -43,9 +43,11 @@ class config:
     
     # optimizer parameter
     #lr = 0.000001
-    lr=1e-9
+    lr=1e-10
     momentum = 0.9
+    #momentum = 0.0
     weight_decay = 5e-4
+    #weight_decay = 0.0
     
     # Inspecting parameter
     num_batch_display = 10

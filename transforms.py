@@ -57,8 +57,8 @@ def random_horizontal_flip(img, boxes):
     '''
     
     height,width, channel = img.shape
-    #non_boxes = len(boxes.squeeze()) == 0
-    non_boxes = boxes.numel() == 0
+    non_boxes = len(boxes.squeeze()) == 0
+    #non_boxes = boxes.numel() == 0 # well, this is numpy array
     
     if not non_boxes and random.random() > 0.5:
         img = img[:,::-1]
